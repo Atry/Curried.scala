@@ -5,15 +5,21 @@ private[scala] object Curried {
   final class Macros(val c: whitebox.Context) {
     import c.universe._
     def apply(varargs: Tree*): Tree = {
-      val q"$callee.$_[..$typeArguments](..$_)" = c.macroApplication
-      q"""${varargs.foldLeft[Tree](q"$callee.applyBegin[..$typeArguments]") { (partiallyAppliedCallee, argument) =>
-        argument match {
-          case q"$sequenceArgument: _*" =>
-            q"$sequenceArgument.foldLeft($partiallyAppliedCallee)(_.applyNext(_))"
-          case _ =>
-            q"$partiallyAppliedCallee.applyNext($argument)"
-        }
-      }}.applyEnd"""
+      val q"${typeApply @ q"$callee.$_[..$typeArguments]"}(..$_)" = c.macroApplication
+      q"""
+        ${
+          varargs.foldLeft[Tree](atPos(typeApply.pos)(q"$callee.applyBegin[..$typeArguments]")) { (partiallyAppliedCallee, argument) =>
+            atPos(argument.pos) {
+              argument match {
+                case q"$sequenceArgument: _*" =>
+                  q"$sequenceArgument.foldLeft($partiallyAppliedCallee)(_.applyNext(_))"
+                case _ =>
+                  q"$partiallyAppliedCallee.applyNext($argument)"
+              }
+            }
+          }
+        }.applyEnd
+      """
     }
   }
 }
