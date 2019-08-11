@@ -27,7 +27,7 @@ private[scala] object Curried {
 /** A marker trait that enables curried varargs.
   *
   * Given a function call `f(a, b, c)`,
-  * when f is a subtype of [[Curried]],
+  * when `f` is a subtype of [[Curried]],
   * it should be rewritten to `f.applyBegin.applyNext(a).applyNext(b).applyNext(c).applyEnd`.
   *
   * Optionally, some arguments to a Curried call may be a sequence argument marked as `_*`.
