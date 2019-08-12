@@ -12,7 +12,7 @@ private[scala] object Curried {
             atPos(argument.pos) {
               argument match {
                 case q"$sequenceArgument: _*" =>
-                  q"$sequenceArgument.foldLeft($partiallyAppliedCallee)(_.applyNext(_))"
+                  q"$partiallyAppliedCallee.applyNextSeq($sequenceArgument)"
                 case _ =>
                   q"$partiallyAppliedCallee.applyNext($argument)"
               }
@@ -36,9 +36,9 @@ private[scala] object Curried {
   *  the sequence argument will becomes a `foldLeft` call.
   *
   * <pre>
-  * s1.foldLeft(f.applyBegin
+  * f.applyBegin
   *   .applyNext(p1)
-  * )(_.applyNext(_))
+  *   .applyNextSeq(s1)
   *   .applyNext(p2)
   * .applyEnd
   * </pre>
@@ -56,6 +56,10 @@ private[scala] object Curried {
   * {{{
   * class PartiallyAppliedInitializer[A](builder: collection.mutable.Builder[A, List[A]]) {
   *   def applyEnd = builder.result
+  *   def applyNextSeq(seq: Seq[A]) = {
+  *     builder ++= seq
+  *     this
+  *   }
   *   def applyNext(a: A) = {
   *     builder += a
   *     this
