@@ -1,26 +1,55 @@
 package scala
-import language.experimental.macros
-import reflect.macros.whitebox
-private[scala] object Curried {
-  final class Macros(val c: whitebox.Context) {
-    import c.universe._
-    def apply(varargs: Tree*): Tree = {
-      val q"${typeApply @ q"$callee.$_[..$typeArguments]"}(..$_)" = c.macroApplication
-      q"""
-        ${
-          varargs.foldLeft[Tree](atPos(typeApply.pos)(q"$callee.applyBegin[..$typeArguments]")) { (partiallyAppliedCallee, argument) =>
-            atPos(argument.pos) {
-              argument match {
-                case q"$sequenceArgument: _*" =>
-                  q"$partiallyAppliedCallee.applyNextSeq($sequenceArgument)"
-                case _ =>
-                  q"$partiallyAppliedCallee.applyNext($argument)"
-              }
-            }
-          }
-        }.applyEnd
-      """
-    }
+import scala.quoted._
+object Curried {
+
+  def applyBeginImpl(callee: Expr[_ <: Curried], explicitTypes: Type[_ <: AnyKind]*)(given qctx: QuoteContext): Expr[_] = {
+    import qctx.tasty.{_, given}
+    val select = Select.unique(callee.unseal, "applyBegin")
+
+    val typeTrees = explicitTypes.view.map(_.unseal).toList
+    (if (typeTrees.isEmpty) {
+      select
+    } else {
+      TypeApply(
+        select,
+        typeTrees
+      )
+    }).seal
+
+  }
+
+  def applyEndImpl(builder: Expr[_])(given qctx: QuoteContext): Expr[_] = {
+    import qctx.tasty.{_, given}
+    Select.unique(builder.unseal, "applyEnd").seal
+  }
+
+  def applyNextImpl(builder: Expr[_], arg: Expr[_])(given qctx: QuoteContext): Expr[_] = {
+    import qctx.tasty.{_, given}
+    Select.overloaded(builder.unseal, "applyNext", Nil, List(arg.unseal)).seal
+  }
+
+  inline def applyRest(builder: Any) <: Any = ${
+    applyEndImpl('builder)
+  }
+
+  inline def applyRest(builder: Any, head: Any, tail: Any*) <: Any = {
+    applyRest(applyNext(builder, head), tail: _*)
+  }
+
+  inline def applyNext(builder: Any, head: Any) <: Any = ${
+    applyNextImpl('builder, 'head)
+  }
+
+  inline def applyBegin0(callee: Curried) <: Any = ${
+    applyBeginImpl('callee)
+  }
+
+  inline def applyBegin1[A <: AnyKind](callee: Curried) <: Any = ${
+    applyBeginImpl('callee, summon[Type[A]])
+  }
+
+  inline def applyBegin2[A <: AnyKind, B <: AnyKind](callee: Curried) <: Any = ${
+    applyBeginImpl('callee, summon[Type[A]], summon[Type[B]])
   }
 }
 
@@ -73,6 +102,19 @@ private[scala] object Curried {
   * FastListInitializer[Int](0, 100 to 103: _*, 1) should be(List(0, 100, 101, 102, 103, 1))
   * }}}
   */
-trait Curried extends Any with CurriedWithTypeParameters {
-  def apply(varargs: Any*): Any = macro Curried.Macros.apply
+trait Curried extends Any with LowPriorityCurried {
+  inline def apply(varargs: Any*) <: Any = {
+    Curried.applyRest(Curried.applyBegin0(this), varargs: _*)
+  }
+}
+
+trait LowPriorityCurried extends Any { this: Curried =>
+
+  inline def apply[A <: AnyKind](varargs: Any*) <: Any = {
+    Curried.applyRest(Curried.applyBegin1[A](this), varargs: _*)
+  }
+  inline def apply[A <: AnyKind, B <: AnyKind](varargs: Any*) <: Any = {
+    Curried.applyRest(Curried.applyBegin2[A, B](this), varargs: _*)
+  }
+
 }

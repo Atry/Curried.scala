@@ -1,13 +1,4 @@
-
-enablePlugins(Example)
-
 import meta._
-
-examplePackageRef := q"scala"
-
-libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.8" % Test
-
-libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
 
 val generateCurriedWithTypeParameters = taskKey[Seq[File]]("Generate CurriedWithTypeParameters.scala file.")
 
@@ -38,4 +29,10 @@ generateCurriedWithTypeParameters := {
   Seq(outputFile)
 }
 
-Compile / sourceGenerators += generateCurriedWithTypeParameters.taskValue
+Compile / sourceGenerators ++= {
+  if (!isDotty.value) {
+    Some(generateCurriedWithTypeParameters.taskValue)
+  } else {
+    None
+  }
+} 
