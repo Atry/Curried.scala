@@ -1,26 +1,40 @@
 package scala
-import language.experimental.macros
-import reflect.macros.whitebox
-private[scala] object Curried {
-  final class Macros(val c: whitebox.Context) {
-    import c.universe._
-    def apply(varargs: Tree*): Tree = {
-      val q"${typeApply @ q"$callee.$_[..$typeArguments]"}(..$_)" = c.macroApplication
-      q"""
-        ${
-          varargs.foldLeft[Tree](atPos(typeApply.pos)(q"$callee.applyBegin[..$typeArguments]")) { (partiallyAppliedCallee, argument) =>
-            atPos(argument.pos) {
-              argument match {
-                case q"$sequenceArgument: _*" =>
-                  q"$partiallyAppliedCallee.applyNextSeq($sequenceArgument)"
-                case _ =>
-                  q"$partiallyAppliedCallee.applyNext($argument)"
-              }
-            }
-          }
-        }.applyEnd
-      """
+import scala.quoted._
+object Curried {
+
+  def applyImpl(callee: Expr[_ <: Curried], args: Expr[Seq[_]], explicitTypes: Type[_ <: AnyKind]*)(given qctx: QuoteContext): Expr[_] = {
+    import qctx.tasty.{_, given}
+
+    val unpackedArgs = args.unseal.underlyingArgument match {
+      case Typed(Repeated(unpackedArgs, _), _) =>
+        unpackedArgs
+      case tree =>
+        Nil
     }
+
+    println(unpackedArgs)
+
+    val applyBegin = {
+      val typeTrees = explicitTypes.view.map(_.unseal).toList
+      val select = Select.unique(callee.unseal.underlyingArgument, "applyBegin")
+      if (typeTrees.isEmpty) {
+        select
+        // FIXME: inference type parameters
+      } else {
+        TypeApply(
+          select,
+          typeTrees
+        )
+      }
+    }
+
+    val builder = unpackedArgs.foldLeft(applyBegin) { (builder, arg) =>
+      Select.overloaded(builder, "applyNext", Nil, List(arg))
+    }
+
+    val result = Select.unique(builder, "applyEnd")
+
+    result.seal
   }
 }
 
@@ -73,6 +87,19 @@ private[scala] object Curried {
   * FastListInitializer[Int](0, 100 to 103: _*, 1) should be(List(0, 100, 101, 102, 103, 1))
   * }}}
   */
-trait Curried extends Any with CurriedWithTypeParameters {
-  def apply(varargs: Any*): Any = macro Curried.Macros.apply
+trait Curried extends Any with LowPriorityCurried {
+  inline def apply(varargs: Any*) <: Any = ${
+    Curried.applyImpl('this, 'varargs)
+  }
+}
+
+trait LowPriorityCurried extends Any { this: Curried =>
+
+  inline def apply[A <: AnyKind](varargs: Any*) <: Any = ${
+    Curried.applyImpl('this, 'varargs, summon[Type[A]])
+  }
+  inline def apply[A <: AnyKind, B <: AnyKind](varargs: Any*) <: Any = ${
+    Curried.applyImpl('this, 'varargs, summon[Type[A]], summon[Type[B]])
+  }
+
 }

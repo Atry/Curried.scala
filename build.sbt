@@ -4,8 +4,8 @@ publish / skip  := true
 
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
-lazy val Curried = crossProject(JSPlatform, JVMPlatform)
+lazy val Curried = crossProject(JVMPlatform)
 
 lazy val CurriedJVM = Curried.jvm
 
-lazy val CurriedJS = Curried.js
+ThisBuild / scalaVersion := "0.20.0-RC1"
