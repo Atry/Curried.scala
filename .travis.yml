@@ -31,12 +31,12 @@ before_deploy:
 
 deploy:
   - provider: script
-    script: sbt --addPluginSbtFile=$ADD_PLUGIN_SBT_FILE ++$TRAVIS_SCALA_VERSION "set every Seq(sonatypeSessionName := \"Travis Job $TRAVIS_JOB_NAME $TRAVIS_JOB_NUMBER ($TRAVIS_JOB_WEB_URL)\", publishTo := sonatypePublishToBundle.value)" publishSigned sonatypeBundleRelease
+    script: sbt ++$TRAVIS_SCALA_VERSION "set every Seq(sonatypeSessionName := \"Travis Job $TRAVIS_JOB_NAME $TRAVIS_JOB_NUMBER ($TRAVIS_JOB_WEB_URL)\", publishTo := sonatypePublishToBundle.value)" publishSigned sonatypeBundleRelease
     skip_cleanup: true
     on:
       all_branches: true
       condition: $SECRET_GIST
 
-env:
-  ADD_PLUGIN_SBT_FILE=
-  ADD_PLUGIN_SBT_FILE=project/plugins.sbt.scala-js.0.6
+sbt_args:
+  - 
+  - --addPluginSbtFile=project/plugins.sbt.scala-js.0.6
