@@ -1,8 +1,6 @@
-// An optional sbt file to replace Scala.js 1.0 version with Scala.js 0.6
-libraryDependencies := libraryDependencies.value.map { moduleID =>
-  if (moduleID.organization == "org.scala-js" && moduleID.name == "sbt-scalajs") {
-    moduleID.withRevision("0.6.32")
-  } else {
-    moduleID
-  }
-}
+// An optional sbt file to replace Scala.js 1.0 with 0.6
+dependencyOverrides += Defaults.sbtPluginExtra(
+  "org.scala-js" % "sbt-scalajs" % "0.6.32",
+  sbtBinaryVersion.value,
+  scalaBinaryVersion.value,
+)
