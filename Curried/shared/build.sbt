@@ -5,7 +5,7 @@ import meta._
 
 examplePackageRef := q"scala"
 
-libraryDependencies += "org.scalatest" %%% "scalatest" % "3.1.2" % Test
+libraryDependencies += "org.scalatest" %%% "scalatest" % "3.2.1" % Test
 
 libraryDependencies += "org.scala-lang" % "scala-reflect" % scalaVersion.value
 
